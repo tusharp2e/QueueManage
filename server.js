@@ -42,7 +42,7 @@ app.use("/sendTx", (req, res) => {
             }
         }
     );
-    res.status(200).json({ message: `Transaction sent`, queue_id: uuid });
+    res.status(200).json({ message: `Transaction sent`, queueId: uuid, isSuccess: true });
 });
 
 const runEvery30Sec = async () => {
@@ -91,7 +91,7 @@ const runEvery30Sec = async () => {
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
-    cron.schedule('*/20 * * * * *', () => {
+    cron.schedule('*/30 * * * * *', () => {
         runEvery30Sec();
     });
 });

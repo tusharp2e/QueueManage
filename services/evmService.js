@@ -24,7 +24,7 @@ export async function sendEVMCall({
         }
         logger.info(`Initiating transaction with data: ${JSON.stringify(data)}`);
 
-        const response = await fetch(`${evmURL}/transaction/send`, { method: "POST", headers, body: JSON.stringify(data) });
+        const response = await fetch(`${evmURL}/transaction/smartWalletSend`, { method: "POST", headers, body: JSON.stringify(data) });
         const responseText = await response.text();
         if (!response.ok) {
             throw new Error(`Transaction write failed: ${responseText}`);
