@@ -91,7 +91,7 @@ const runEvery30Sec = async () => {
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
-    cron.schedule('*/20 * * * * *', () => {
+    cron.schedule('*/30 * * * * *', () => {
         runEvery30Sec();
     });
 });
