@@ -5,7 +5,8 @@ export async function sendEVMCall({
     args,
     contractAddress,
     chainId,
-    smartWallet
+    smartWallet,
+    queueId
 }) {
     try {
         const evmURL = process.env.EVM_URL;
@@ -20,7 +21,8 @@ export async function sendEVMCall({
             args,
             contractAddress,
             chainId,
-            smartWallet
+            smartWallet,
+            queueId
         }
         logger.info(`Initiating transaction with data: ${JSON.stringify(data)}`);
 
@@ -35,7 +37,6 @@ export async function sendEVMCall({
             transaction: parsed?.transaction
         };
     } catch (err) {
-        console.log(err);
         logger.error(`Error in sendEVMCall: ${err.message}`);
         return { isSuccess: false, error: err.message };
     }
