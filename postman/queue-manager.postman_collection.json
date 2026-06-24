@@ -1,0 +1,76 @@
+{
+  "info": {
+    "name": "Queue Manager",
+    "description": "Smart Wallet Queue Manager APIs. Set the collection variables (baseUrl, contractAddress, chainId, smartWallet, etc.) under the collection's Variables tab, then send. 'Queue Transaction' auto-saves the returned id into {{queueId}} so 'Get Transaction Status' works right after.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
+    { "key": "functionSignature", "value": "function set(uint256 x)", "type": "string" },
+    { "key": "args", "value": "[115]", "type": "string" },
+    { "key": "contractAddress", "value": "0x7Ae020A9423d63315F2266d53bBE50ee4749e7Fb", "type": "string" },
+    { "key": "chainId", "value": "80002", "type": "string" },
+    { "key": "smartWallet", "value": "", "type": "string" },
+    { "key": "queueId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        },
+        "description": "Liveness + DB check. 200 {status:ok} when the DB is reachable, 503 otherwise."
+      }
+    },
+    {
+      "name": "Queue Transaction",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  pm.collectionVariables.set('queueId', pm.response.json().queue_id);",
+              "  console.log('saved queueId =', pm.collectionVariables.get('queueId'));",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"functionSignature\": \"{{functionSignature}}\",\n  \"args\": {{args}},\n  \"contractAddress\": \"{{contractAddress}}\",\n  \"chainId\": {{chainId}},\n  \"smartWallet\": \"{{smartWallet}}\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/queue/transaction",
+          "host": ["{{baseUrl}}"],
+          "path": ["queue", "transaction"]
+        },
+        "description": "Enqueue a transaction. smartWallet empty string => the chain's default wallet. Returns {id, smartWallet, status, chainId}."
+      }
+    },
+    {
+      "name": "Get Transaction Status",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/queue/transaction/{{queueId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["queue", "transaction", "{{queueId}}"]
+        },
+        "description": "Fetch a transaction's current status by its queueId. 404 if not found."
+      }
+    }
+  ]
+}
