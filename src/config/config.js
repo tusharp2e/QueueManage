@@ -15,6 +15,9 @@ export const config = {
 
   bundlerUrl: process.env.BUNDLER_URL,
   bundlerAuthToken: process.env.BUNDLER_AUTH_TOKEN,
+  // How long a single Bundler call may take before we abort it. Bounds how long
+  // a hung Bundler can wedge a wallet's pipeline (txns sit in DISPATCHED).
+  bundlerTimeoutMs: Number(process.env.BUNDLER_TIMEOUT_MS) || 120000,
 
   dispatcherIntervalMs: Number(process.env.DISPATCHER_INTERVAL_MS) || 5000,
   maxBatchSize: Number(process.env.MAX_BATCH_SIZE) || 10,

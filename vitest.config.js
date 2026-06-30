@@ -49,6 +49,18 @@ export default defineConfig({
     exclude: ['test/load/**', 'node_modules/**'],
     env: {
       ...dbEnv,
+      // Pin operational config so tests NEVER inherit these knobs from the
+      // project's .env (which carries production-ish values). Without this, a
+      // test asserting "14 queued -> 10 dispatched" or a 5-minute stale window
+      // would silently depend on whatever .env happens to say. test.env is
+      // applied before dotenv.config() runs, and dotenv won't override it.
+      MAX_BATCH_SIZE: '10',
+      STALE_TIMEOUT_MINUTES: '5',
+      DISPATCHER_INTERVAL_MS: '5000',
+      STALE_INTERVAL_MS: '60000',
+      // Short so the "timeout" test exercises the real abort path in ~200ms
+      // instead of the production 120s.
+      BUNDLER_TIMEOUT_MS: '200',
       // Overridden per-test by the mock Bundler's actual URL; this placeholder
       // only exists so config.js's required-vars check passes at import.
       BUNDLER_URL: 'http://127.0.0.1:1',

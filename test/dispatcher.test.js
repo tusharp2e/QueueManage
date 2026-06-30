@@ -7,9 +7,11 @@ import {
   closeAll,
   insertTestTxn,
   getTxn,
-  getTxnsForWallet,
   createMockBundler,
 } from './helpers/setup.js';
+
+const CHAIN_A = 80002;
+const CHAIN_B = 11155111; // a different supported chain (independent nonce space)
 
 const WALLET_A = '0xaaa0000000000000000000000000000000000001';
 const WALLET_B = '0xbbb0000000000000000000000000000000000002';
@@ -184,7 +186,7 @@ describe('Layer 4 — dispatcher: multiple wallets', () => {
     // execution would peak at 1.
     let inFlightNow = 0;
     let maxConcurrent = 0;
-    bundler.setHandler(async (req, res) => {
+    bundler.setHandler(async (_req, res) => {
       inFlightNow += 1;
       maxConcurrent = Math.max(maxConcurrent, inFlightNow);
       await new Promise((r) => setTimeout(r, 200));
@@ -219,6 +221,51 @@ describe('Layer 4 — dispatcher: multiple wallets', () => {
     const batches = bundler.getReceivedBatches();
     expect(batches).toHaveLength(1);
     expect(batches[0].smartWallet).toBe(WALLET_A);
+  });
+});
+
+describe('Layer 4 — dispatcher: per-(wallet, chain) serialization', () => {
+  it('same wallet on two chains -> two independent batches, both dispatched', async () => {
+    // Identical wallet address, different chains = independent nonce spaces.
+    const onA = await insertTestTxn({ smart_wallet_address: WALLET_A, chain_id: CHAIN_A });
+    const onB = await insertTestTxn({ smart_wallet_address: WALLET_A, chain_id: CHAIN_B });
+
+    await dispatchOnce();
+
+    expect((await getTxn(onA)).status).toBe('dispatched');
+    expect((await getTxn(onB)).status).toBe('dispatched');
+
+    const batches = bundler.getReceivedBatches();
+    expect(batches).toHaveLength(2);
+    expect(batches.every((b) => b.smartWallet === WALLET_A)).toBe(true);
+    expect(new Set(batches.map((b) => b.chainId))).toEqual(new Set([CHAIN_A, CHAIN_B]));
+    expect(new Set(batches.map((b) => b.batchId)).size).toBe(2); // distinct batches
+  });
+
+  it('an in-flight batch on one chain does NOT block the same wallet on another chain', async () => {
+    // Chain A is wedged (in-flight 'dispatched'); chain B for the SAME wallet is free.
+    await insertTestTxn({ smart_wallet_address: WALLET_A, chain_id: CHAIN_A, status: 'dispatched' });
+    const blockedOnA = await insertTestTxn({
+      smart_wallet_address: WALLET_A,
+      chain_id: CHAIN_A,
+      status: 'queued',
+    });
+    const freeOnB = await insertTestTxn({
+      smart_wallet_address: WALLET_A,
+      chain_id: CHAIN_B,
+      status: 'queued',
+    });
+
+    await dispatchOnce();
+
+    // The in-flight check is scoped to (wallet, chain): chain A stays blocked,
+    // chain B dispatches independently.
+    expect((await getTxn(blockedOnA)).status).toBe('queued');
+    expect((await getTxn(freeOnB)).status).toBe('dispatched');
+
+    const batches = bundler.getReceivedBatches();
+    expect(batches).toHaveLength(1);
+    expect(batches[0].chainId).toBe(CHAIN_B);
   });
 });
 
@@ -297,6 +344,9 @@ describe('Layer 4 — dispatcher: payload correctness', () => {
     const tx = batch.transactions[0];
     expect(tx).toEqual({
       id,
+      // Stable idempotency key (= id) the Bundler forwards to thirdweb so a
+      // reverted-and-retried batch can't double-execute on-chain.
+      idempotencyKey: id,
       contractAddress: '0x2222222222222222222222222222222222222222',
       functionSignature: 'transfer(address,uint256)',
       args: ['0x3333333333333333333333333333333333333333', '1000'],

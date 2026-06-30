@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 
 import { sendBatchToBundler, BundlerError } from '../src/services/dispatchToBundler.js';
 import { config, createMockBundler, closeAll } from './helpers/setup.js';
@@ -82,7 +82,7 @@ describe('Layer 3 — Bundler client: sendBatchToBundler', () => {
   });
 
   it('400 -> throws BundlerError with kind "http_4xx" (malformed payload, not an outage)', async () => {
-    bundler.setHandler((req, res) => res.status(400).json({ error: 'BAD_REQUEST' }));
+    bundler.setHandler((_req, res) => res.status(400).json({ error: 'BAD_REQUEST' }));
 
     const err = await sendBatchToBundler(sampleBatch()).catch((e) => e);
     expect(err).toBeInstanceOf(BundlerError);
@@ -90,17 +90,16 @@ describe('Layer 3 — Bundler client: sendBatchToBundler', () => {
     expect(err.status).toBe(400);
   });
 
-  it(
-    'no response -> throws BundlerError with kind "timeout" after the abort deadline',
-    async () => {
-      bundler.timeout(); // accepts the connection but never responds
+  it('no response -> throws BundlerError with kind "timeout"', async () => {
+    bundler.timeout(); // accepts the connection but never responds
 
-      const err = await sendBatchToBundler(sampleBatch()).catch((e) => e);
-      expect(err).toBeInstanceOf(BundlerError);
-      expect(err.kind).toBe('timeout');
-    },
-    13000 // real wait: the hardcoded 10s AbortSignal must actually fire
-  );
+    // The abort deadline is now config-driven (BUNDLER_TIMEOUT_MS), pinned to
+    // 200ms in vitest.config — so this exercises the real timeout path quickly,
+    // no stubbing required.
+    const err = await sendBatchToBundler(sampleBatch()).catch((e) => e);
+    expect(err).toBeInstanceOf(BundlerError);
+    expect(err.kind).toBe('timeout');
+  });
 
   it('connection refused -> throws BundlerError with kind "network"', async () => {
     // Bind a port, capture it, then free it: connecting now yields ECONNREFUSED

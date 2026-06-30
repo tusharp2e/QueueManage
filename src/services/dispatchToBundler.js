@@ -1,10 +1,5 @@
 import { config } from '../config/config.js';
 
-// How long a single dispatch call may take before we give up. Bounds how long
-// a hung Bundler can wedge a wallet's pipeline (its txns sit in DISPATCHED).
-// Promote to config if it needs to vary per environment.
-const BUNDLER_TIMEOUT_MS = 120000;
-
 /**
  * Error thrown for any failed Bundler call. `kind` lets the caller log/meter
  * failure modes distinctly, though all kinds currently trigger the same revert.
@@ -42,13 +37,13 @@ export async function sendBatchToBundler(batch) {
       // Self-aborting signal: cancels the request after the deadline so a hung
       // Bundler can't wedge a wallet's pipeline. Replaces the manual
       // AbortController + setTimeout + clearTimeout dance.
-      signal: AbortSignal.timeout(BUNDLER_TIMEOUT_MS),
+      signal: AbortSignal.timeout(config.bundlerTimeoutMs),
     });
   } catch (err) {
     // fetch rejects on timeout (TimeoutError) or low-level network failure
     // (DNS, connection refused, reset). Both mean "the call did not complete".
     if (err.name === 'TimeoutError') {
-      throw new BundlerError(`Bundler call timed out after ${BUNDLER_TIMEOUT_MS}ms`, 'timeout');
+      throw new BundlerError(`Bundler call timed out after ${config.bundlerTimeoutMs}ms`, 'timeout');
     }
     throw new BundlerError(`Bundler unreachable: ${err.message}`, 'network');
   }
