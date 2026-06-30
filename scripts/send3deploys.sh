@@ -15,7 +15,7 @@ PAYLOAD="${PAYLOAD:-scripts/deploy-payload.json}"   # { abiEncoded, bytecode, co
 CHAIN_ID="${CHAIN_ID:-11155111}"                     # 11155111=sepolia, 80002=amoy
 
 echo "Submitting 3 deploys concurrently to $QM_URL (chainId=$CHAIN_ID) ..."
-for i in 1 2 3; do
+for i in 1 2 3 4 5; do
   TRACE=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || uuidgen)
   BODY=$(jq -c --arg t "$TRACE" --argjson c "$CHAIN_ID" \
     '{abiEncoded:.abiEncoded, bytecode:.bytecode, constructorArgs:.constructorArgs, chainId:$c, traceId:$t, smartWallet:""}' \
